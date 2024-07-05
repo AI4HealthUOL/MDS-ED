@@ -45,4 +45,21 @@ Overall, we can draw several conclusions:
 ![alt text](https://github.com/AI4HealthUOL/MDS-ED/blob/main/reports/benchmark.png?style=centerme)
 
 
+### Clinical Significance
 
+
+
+
+
+
+## Reference
+```bibtex
+@misc{alcaraz2024causalconceptts,
+      title={CausalConceptTS: Causal Attributions for Time Series Classification using High Fidelity Diffusion Models}, 
+      author={Juan Miguel Lopez Alcaraz and Nils Strodthoff},
+      year={2024},
+      eprint={2405.15871},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
