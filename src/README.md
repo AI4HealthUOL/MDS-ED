@@ -12,5 +12,16 @@ Alternatively, you can preprocess the MDS-ED dataset on your own, first, downloa
 
 ## Experiments
 
+If you wish to replicate our experiments, 
+
+waveforms
+
+https://github.com/AI4HealthUOL/ECG-MIMIC 
+
+
+
+```
+python full_preprocessing.py --mimic-path <path to mimic-iv directory ended in 'mimiciv/2.2/'> --zip-path <path to ecgs zip file> --target-path <desired output for preprocessed data default='./'>
+```
 
 
