@@ -4,7 +4,7 @@ This is the official repository for the paper MDS-ED: Multimodal Decision Suppor
 
 [![arXiv](https://img.shields.io/badge/arXiv-1234.56789-b31b1b.svg)](https://arxiv.org/abs/2405.15871)
 
-### Clinical Setting
+## Clinical Setting
 
 In this study, conducted within the context of an emergency department, we introduce a state-of-the-art biomedical multimodal benchmark. This benchmark is evaluated in two comprehensive settings:
 
@@ -21,7 +21,7 @@ The datasets include various patient data collected within a 90-minute interval 
 ![alt text](https://github.com/AI4HealthUOL/MDS-ED/blob/main/reports/abstract_image.png?style=centerme)
 
 
-### Comparison to Prior Benchmarks
+## Comparison to Prior Benchmarks
 
 1. **Comprehensive Size**: MDS-ED ranks first in terms of the number of patients and second in the number of visits in the open-source domain, despite focusing only on the first 1.5 hours of ED arrival.
 
@@ -34,7 +34,7 @@ The datasets include various patient data collected within a 90-minute interval 
 ![alt text](https://github.com/AI4HealthUOL/MDS-ED/blob/main/reports/related_work.png?style=centerme)
 
 
-### Proposed Baseline Benchmark
+## Proposed Baseline Benchmark
 
 Overall, we can draw several conclusions:
 
@@ -45,7 +45,7 @@ Overall, we can draw several conclusions:
 ![alt text](https://github.com/AI4HealthUOL/MDS-ED/blob/main/reports/benchmark.png?style=centerme)
 
 
-### Clinical Significance
+## Clinical Significance
 
 
 
