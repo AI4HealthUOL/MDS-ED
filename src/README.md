@@ -2,7 +2,7 @@
 
 For convenience, we have located the MDS-ED dataset in physionet. **under revision**
 
-Alternatively, you can preprocess the MDS-ED dataset on your own, first, download from the following databased the following files and place them under this directory, then run full_preprocessing.py
+Alternatively, you can preprocess the MDS-ED dataset on your own, first, download from the following databased the following files and place them under data/, then run full_preprocessing.py
 
 - From MIMIC-IV-ECG-ICD: records_w_diag_icd10.csv
 - From MIMIC-IV-ED: edstays.csv.gz, diagnosis.csv.gz, pyxis.csv.gz, vitalsign.csv.gz, triage.csv.gz
