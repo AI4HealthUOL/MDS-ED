@@ -754,7 +754,7 @@ lab_features_df = pd.DataFrame(lab_features)
 df_features = pd.concat([df_features, lab_features_df], axis=1)
 df_features.drop(columns='race_mapped', inplace=True)
 
-features_cols = ['age','gender'] + df_features.columns[34:].tolist() # 470
+features_cols = ['age','gender'] + df_features.columns[34:].tolist() 
 
 for col in features_cols:
     mask_col = col + '_m'
@@ -763,20 +763,21 @@ for col in features_cols:
 df_features[features_cols] = df_features[features_cols].fillna(df_features[features_cols].median())
 features_cols_withmask = [i+'_m' for i in features_cols]
 
-all_features = features_cols + features_cols_withmask # 940
+all_features = features_cols + features_cols_withmask
 
-lbls_diags = lbls_diags # 1414
-lbls_det = decompensation_model_cols # 15
+lbls_diags = lbls_diags 
+lbls_det = decompensation_model_cols 
 
 col_diags = 'Diagnoses_labels'
 col_det = 'Deterioration_labels'
 
 task_mapping = {
     'diags': {'lbls': lbls_diags, 'col': col_diags},
-    'decomp': {'lbls': lbls_decomp, 'col': col_decomp}
+    'det': {'lbls': lbls_det, 'col': col_det}
 }
 
 with open('data/task_mapping.pkl', 'wb') as f:
     pkl.dump(task_mapping, f)
-    
+
+np.save('data/cols_static.npy', all_features)
 df_features.to_csv('data/memmap/df_memmap.csv', index=False)
