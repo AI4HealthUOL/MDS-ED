@@ -1,6 +1,6 @@
-# MDS-ED: Multimodal Decision Support in the Emergency Department – a benchmark dataset based on MIMIC-IV
+# MDS-ED: Multimodal Decision Support \\in the Emergency Department -- a Benchmark Dataset for Diagnoses and Deterioration Prediction in Emergency Medicine
 
-This is the official repository for the paper MDS-ED: Multimodal Decision Support in the Emergency Department – a benchmark dataset based on MIMIC-IV
+This is the official repository for the paper MDS-ED: Multimodal Decision Support \\in the Emergency Department -- a Benchmark Dataset for Diagnoses and Deterioration Prediction in Emergency Medicine
 
 [![arXiv](https://img.shields.io/badge/arXiv-1234.56789-b31b1b.svg)](https://arxiv.org/abs/2405.15871)
 
@@ -38,16 +38,11 @@ The datasets include various patient data collected within a 90-minute interval 
 
 Overall, we can draw several conclusions:
 
-1. **Superior Performance of Multimodal Models**: The results demonstrate that multimodal models, which integrate diverse data types, offer superior performance in both diagnostic and decompensation tasks.
-2. **Improved Performance with Raw ECG Waveforms**: Using ECG raw waveforms instead of ECG features improves performance. This is the first demonstration of the added value of raw waveform input for clinically relevant prediction tasks.
-3. **ECG Waveform Superiority in Diagnostic Setting**: ECG waveforms only show superiority over a robust set of tabular features for the diagnostic setting, but not for decompensation. This may be due to the inclusion of tabular trends over time, which correlate with the task definition of decompensation. Including two raw ECGs over time instead of a single snapshot might potentially capture meaningful decompensation trends.
+1. **Superior Performance of Multimodal Models**: The results demonstrate that multimodal models, which integrate diverse data types, offer superior performance in both diagnostic and deterioration tasks (row 1/2 vs. row 3/4).
+2. **Improved Performance with Raw ECG Waveforms**: In the diagnoses task, the use of ECG raw waveforms instead of ECG features improves the performance in a statistically significant manner (row 3 vs. row 4), whereas for the deterioration task, we performed a direct comparison via bootstrapping the score difference for statistical significance, and we did not find a statistically significant difference. To the best of our knowledge, this is the first statistically robust demonstration of the added value of raw waveform input against features for clinically relevant prediction tasks such as diagnoses prediction.
+3. **ECG Waveform Superiority in Diagnostic Setting**: The model building on ECG waveforms as only input outperforms the tabular-only model in the diagnostic setting, but not in the deterioration setting (row 1 vs. row 2). We hypothesize that this is due to the inclusion of tabular trends over time which aligns with the task definition of deterioration. We believe that the inclusion of multiple raw ECGs over time instead of just a single snapshot would allow us to capture more meaningful deterioration trends also from raw waveform data.
 
 ![alt text](https://github.com/AI4HealthUOL/MDS-ED/blob/main/reports/benchmark.png?style=centerme)
-
-
-## Clinical Significance
-
-
 
 
 
