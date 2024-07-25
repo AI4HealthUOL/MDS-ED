@@ -18,7 +18,7 @@ The datasets include various patient data collected within a 90-minute interval 
 - Laboratory value trends
 - ECG waveforms
 
-![alt text](https://github.com/AI4HealthUOL/MDS-ED/blob/main/reports/abstract_image.png?style=centerme)
+![alt text](https://github.com/AI4HealthUOL/MDS-ED/blob/main/reports/abstract_img.png?style=centerme)
 
 
 ## Comparison to Prior Benchmarks
