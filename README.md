@@ -1,6 +1,6 @@
-# MDS-ED: Multimodal Decision Support \\in the Emergency Department -- a Benchmark Dataset for Diagnoses and Deterioration Prediction in Emergency Medicine
+# MDS-ED: Multimodal Decision Support in the Emergency Department -- a Benchmark Dataset for Diagnoses and Deterioration Prediction in Emergency Medicine
 
-This is the official repository for the paper MDS-ED: Multimodal Decision Support \\in the Emergency Department -- a Benchmark Dataset for Diagnoses and Deterioration Prediction in Emergency Medicine
+This is the official repository for the paper MDS-ED: Multimodal Decision Support in the Emergency Department -- a Benchmark Dataset for Diagnoses and Deterioration Prediction in Emergency Medicine
 
 [![arXiv](https://img.shields.io/badge/arXiv-1234.56789-b31b1b.svg)](https://arxiv.org/abs/2405.15871)
 
