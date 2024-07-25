@@ -42,7 +42,7 @@ Overall, we can draw several conclusions:
 2. **Improved Performance with Raw ECG Waveforms**: In the diagnoses task, the use of ECG raw waveforms instead of ECG features improves the performance in a statistically significant manner (row 3 vs. row 4), whereas for the deterioration task, we performed a direct comparison via bootstrapping the score difference for statistical significance, and we did not find a statistically significant difference. To the best of our knowledge, this is the first statistically robust demonstration of the added value of raw waveform input against features for clinically relevant prediction tasks such as diagnoses prediction.
 3. **ECG Waveform Superiority in Diagnostic Setting**: The model building on ECG waveforms as only input outperforms the tabular-only model in the diagnostic setting, but not in the deterioration setting (row 1 vs. row 2). We hypothesize that this is due to the inclusion of tabular trends over time which aligns with the task definition of deterioration. We believe that the inclusion of multiple raw ECGs over time instead of just a single snapshot would allow us to capture more meaningful deterioration trends also from raw waveform data.
 
-![alt text](https://github.com/AI4HealthUOL/MDS-ED/blob/main/reports/benchmark.png?style=centerme)
+![alt text](https://github.com/AI4HealthUOL/MDS-ED/blob/main/reports/bench.png?style=centerme)
 
 
 
