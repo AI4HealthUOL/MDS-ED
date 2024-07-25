@@ -9,7 +9,7 @@ This is the official repository for the paper MDS-ED: Multimodal Decision Suppor
 In this study, conducted within the context of an emergency department, we introduce a state-of-the-art biomedical multimodal benchmark. This benchmark is evaluated in two comprehensive settings:
 
 1. **Patient Discharge Diagnoses**: A dataset consisting of 1,428 patient discharge diagnoses.
-2. **Patient Decompensation Events**: A dataset consisting of 15 patient decompensation events.
+2. **Patient Deterioration Events**: A dataset consisting of 15 patient deterioration events.
 
 The datasets include various patient data collected within a 90-minute interval upon arrival, such as:
 - Demographics
