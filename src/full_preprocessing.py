@@ -8,7 +8,7 @@ from tqdm import tqdm
 import glob
 from sklearn.linear_model import LinearRegression
 from ecg_utils import prepare_mimicecg
-from timeseries_utils import reformat_as_memmap
+from clinica_ts.timeseries_utils import reformat_as_memmap
 import argparse
 from pathlib import Path
 pd.options.mode.chained_assignment = None
