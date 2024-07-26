@@ -2,7 +2,7 @@
 
 This is the official repository for the paper MDS-ED: Multimodal Decision Support in the Emergency Department -- a Benchmark Dataset for Diagnoses and Deterioration Prediction in Emergency Medicine
 
-[![arXiv](https://img.shields.io/badge/arXiv-1234.56789-b31b1b.svg)](https://arxiv.org/abs/2405.15871)
+[![arXiv](https://img.shields.io/badge/arXiv-1234.56789-b31b1b.svg)](https://arxiv.org/abs/2407.17856)
 
 ## Clinical Setting
 
@@ -49,12 +49,13 @@ Overall, we can draw several conclusions:
 
 ## Reference
 ```bibtex
-@misc{alcaraz2024causalconceptts,
-      title={CausalConceptTS: Causal Attributions for Time Series Classification using High Fidelity Diffusion Models}, 
+@misc{alcaraz2024mdsedmultimodaldecisionsupport,
+      title={MDS-ED: Multimodal Decision Support in the Emergency Department -- a Benchmark Dataset for Diagnoses and Deterioration Prediction in Emergency Medicine}, 
       author={Juan Miguel Lopez Alcaraz and Nils Strodthoff},
       year={2024},
-      eprint={2405.15871},
+      eprint={2407.17856},
       archivePrefix={arXiv},
-      primaryClass={cs.LG}
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2407.17856}, 
 }
 ```
