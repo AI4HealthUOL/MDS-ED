@@ -9,7 +9,7 @@ Alternatively, you can preprocess the MDS-ED dataset on your own, first, downloa
 - From MIMIC-IV: admissions.csv.gz, diagnoses_icd.csv.gz, d_labitems.csv.gz, labevents.csv.gz, icustays.csv.gz, procedures_icd.csv.gz, omr.csv.gz
 - From MIMIC-IV-ECG: mimic-iv-ecg-diagnostic-electrocardiogram-matched-subset-1.0.zip
 
-**Since MIMIC-IV-ECG-ICD is under revision, please contact me at juan.lopez.alcaraz@uol.de so I can provide a numpy file for the stratified splits and the diagnostic columns, which are the only variables requiered from MIMIC-IV-ECG-ICD**
+**Since MIMIC-IV-ECG-ICD physionet dataset is under revision, please contact me at juan.lopez.alcaraz@uol.de so I can provide a numpy file for the stratified splits and the diagnostic columns, which are the only variables requiered from MIMIC-IV-ECG-ICD, otherwise you can also preprocess MIMIC-IV-ECG-ICD yourself from https://github.com/AI4HealthUOL/ECG-MIMIC/tree/main**
 
 Please see under demo.ipybn an example of how to acess and manipulate the dataset.
 
