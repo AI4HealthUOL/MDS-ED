@@ -7,7 +7,7 @@ from datetime import timedelta
 from tqdm import tqdm
 import glob
 from sklearn.linear_model import LinearRegression
-from ecg_utils import prepare_mimicecg
+from clinical_ts.ecg_utils import prepare_mimicecg
 from clinica_ts.timeseries_utils import reformat_as_memmap
 import argparse
 from pathlib import Path
