@@ -109,24 +109,21 @@ class Main_ECG(lp.LightningModule):
         elif(hparams.finetune_dataset.startswith("mimic")):
             _, lbl_itos = prepare_mimic_ecg(self.hparams.finetune_dataset,Path(self.hparams.data.split(",")[0]))
             num_classes = len(lbl_itos)
-            
         elif (hparams.finetune_dataset.startswith("mds")):
             task = hparams.finetune_dataset.split('_')[-1]
-            with open('data/memmap/task_mapping.pkl', 'rb') as f:
+            with open('data/task_mapping.pkl', 'rb') as f:
                 loaded_dict_fe = pickle.load(f)
             lbl_itos = loaded_dict_fe[task]['lbls']
             self.lbl_itos = lbl_itos
             num_classes = len(lbl_itos)
             self.col_target = loaded_dict_fe[task]['col']
-            self.cols_static = np.load('data/memmap/cols_static.npy')
+            self.cols_static = np.load('data/cols_static.npy')
                      
         
 
         # also works in the segmentation case
         self.criterion = F.cross_entropy if (hparams.finetune_dataset == "thew" or hparams.finetune_dataset.startswith("segrhythm"))  else F.binary_cross_entropy_with_logits
-        
         #self.criterion = nn.MSELoss() #self.criterion = nn.L1Loss()
-        
     
         if(hparams.architecture=="xresnet1d50"):
             self.model = xresnet1d50(input_channels=hparams.input_channels, num_classes=num_classes)
@@ -143,7 +140,7 @@ class Main_ECG(lp.LightningModule):
                                  d_model=self.hparams.s4_h, 
                                  n_layers = self.hparams.s4_layers,
                                  bidirectional=True)#,backbone="s4new")
-            
+		
         elif(hparams.architecture=='s4mm'):
             self.model = S4ModelMM(d_input=hparams.input_channels, 
                                    d_output=num_classes, 
@@ -153,16 +150,6 @@ class Main_ECG(lp.LightningModule):
                                    n_layers = self.hparams.s4_layers,
                                    bidirectional=True,
                                   tab_features=len(self.cols_static))
-            
-            
-        elif(hparams.architecture=='mamba'):
-            self.model = MambaTSModel(d_model=hparams.s4_h,
-                                      d_state=hparams.s4_n,
-                                        d_input=hparams.input_channels,
-                                        d_output=num_classes)
-            
-            
-            
         else:
             assert(False)
         
@@ -324,9 +311,13 @@ class Main_ECG(lp.LightningModule):
             
             target_folder = Path(target_folder)           
             
-            df_mapped, _,  mean, std = load_dataset(target_folder)
-            lbl_itos = self.lbl_itos
-            
+            #df_mapped, _,  mean, std = load_dataset(target_folder)
+
+	    # load MDS-ED dataframe
+	    df_mapped = pd.read_csv('data/memmap/df_memmap.csv')
+            for c in ['Diagnoses_labels','Deterioration_labels']:
+	    	df_mapped[c] = df_mapped[c].apply(lambda x:eval(x))
+	    lbl_itos = self.lbl_itos
             
             print("Folder:",target_folder,"Samples:",len(df_mapped))
 
@@ -401,22 +392,17 @@ class Main_ECG(lp.LightningModule):
                 df_val = df_mapped[df_mapped.strat_fold==max_fold_id-1]
                 df_test = df_mapped[df_mapped.strat_fold==max_fold_id]
                 
-                print(f'Val before first ecg per stay {len(df_val)}')
-                print(f'Test before first ecg per stay {len(df_test)}')
-                
+
+                # keep first record per visit during evaluations (val/test)
                 df_val = df_val[df_val['ecg_no_within_stay']==0]
                 df_test = df_test[df_test['ecg_no_within_stay']==0]
-                
-                print(f'Val after first ecg per stay {len(df_val)}')
-                print(f'Test after first ecg per stay {len(df_test)}')
-            
                 
                 train_datasets.append(TimeseriesDatasetCrops(df_train,
                                                              self.hparams.input_size,
                                                              data_folder=target_folder,
                                                              chunk_length=chunk_length_train,
                                                              min_chunk_length=self.hparams.input_size, 
-                                                             #cols_static=self.cols_static,
+                                                             cols_static=self.cols_static,
                                                              col_data="data", 
                                                              col_lbl =self.col_target,
                                                              stride=stride_train,
@@ -429,7 +415,7 @@ class Main_ECG(lp.LightningModule):
                                                            data_folder=target_folder,
                                                            chunk_length=chunk_length_valtest,
                                                            min_chunk_length=self.hparams.input_size, 
-                                                           #cols_static=self.cols_static, 
+                                                           cols_static=self.cols_static, 
                                                            col_data="data", 
                                                            col_lbl =self.col_target,
                                                            stride=stride_valtest,
@@ -441,7 +427,7 @@ class Main_ECG(lp.LightningModule):
                                                             data_folder=target_folder,
                                                             chunk_length=chunk_length_valtest,
                                                             min_chunk_length=self.hparams.input_size, 
-                                                            #cols_static=self.cols_static, 
+                                                            cols_static=self.cols_static, 
                                                             col_data="data", 
                                                             col_lbl =self.col_target,
                                                             stride=stride_valtest,
