@@ -1,8 +1,8 @@
 ## Data 
 
-For convenience, we have located the MDS-ED dataset in physionet. **under revision**
+1.1 - For convenience, we have located the MDS-ED dataset in physionet. **under revision**
 
-Alternatively, you can preprocess the MDS-ED dataset on your own, first, download from the following databases the following files and place them under data/, then run full_preprocessing.py
+1.2 - Alternatively, you can preprocess the MDS-ED dataset on your own, first, download from the following databases the following files and place them under data/, then run full_preprocessing.py
 
 - From MIMIC-IV-ECG-ICD: records_w_diag_icd10.csv
 - From MIMIC-IV-ED: edstays.csv.gz, diagnosis.csv.gz, pyxis.csv.gz, vitalsign.csv.gz, triage.csv.gz
@@ -11,7 +11,7 @@ Alternatively, you can preprocess the MDS-ED dataset on your own, first, downloa
 
 **Since MIMIC-IV-ECG-ICD physionet dataset is under revision, please contact me at juan.lopez.alcaraz@uol.de so I can provide a numpy file for the stratified splits and the diagnostic columns, which are the only variables requiered from MIMIC-IV-ECG-ICD, otherwise you can also preprocess MIMIC-IV-ECG-ICD yourself from https://github.com/AI4HealthUOL/ECG-MIMIC/tree/main**
 
-Please see under demo.ipybn an example of how to acess and manipulate the dataset.
+2.0 - Please see under demo.ipynb an example of how to acess and manipulate the dataset.
 
 
 ## Experiments
