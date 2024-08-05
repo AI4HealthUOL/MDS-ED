@@ -111,16 +111,34 @@ class Main_ECG(lp.LightningModule):
             num_classes = len(lbl_itos)
         elif (hparams.finetune_dataset.startswith("mds")):
             task = hparams.finetune_dataset.split('_')[-1]
-            with open('data/task_mapping.pkl', 'rb') as f:
-                loaded_dict_fe = pickle.load(f)
-            lbl_itos = loaded_dict_fe[task]['lbls']
-            self.lbl_itos = lbl_itos
-            num_classes = len(lbl_itos)
-            self.col_target = loaded_dict_fe[task]['col']
-            self.cols_static = np.load('data/cols_static.npy')
-                     
-        
+		
 
+	    df_features = pd.read_csv('data/memmap/df_memmap.csv')
+	    
+	    demographics_columns = [i for i in df_features.columns if 'demographics_' in i]
+	    biometrics_columns = [i for i in df_features.columns if 'biometrics_' in i]
+	    vitalparameters_columns = [i for i in df_features.columns if 'vitalparemeters_' in i]
+	    labvalues_columns = [i for i in df_features.columns if 'labvalues_' in i]
+            all_features = demographics_columns + biometrics_columns + vitalparameters_columns + labvalues_columns
+	    diagnoses_columns = [i for i in df_features.columns if 'diagnoses_' in i]
+	    deterioration_columns = [i for i in df_features.columns if 'deterioration_' in i]
+
+	    if task=='diags':
+	    	lbl_itos = diagnoses_columns
+		self.lbl_itos = lbl_itos
+		num_classes = len(lbl_itos)
+		self.col_target = 'diagnoses_columns'
+		self.cols_static = all_features
+		    
+	    elif task=='det':
+		lbl_itos = deterioration_columns
+		self.lbl_itos = lbl_itos
+		num_classes = len(lbl_itos)
+		self.col_target = 'deterioration_columns'
+		self.cols_static = all_features        
+
+
+	    
         # also works in the segmentation case
         self.criterion = F.cross_entropy if (hparams.finetune_dataset == "thew" or hparams.finetune_dataset.startswith("segrhythm"))  else F.binary_cross_entropy_with_logits
         #self.criterion = nn.MSELoss() #self.criterion = nn.L1Loss()
@@ -314,11 +332,31 @@ class Main_ECG(lp.LightningModule):
             #df_mapped, _,  mean, std = load_dataset(target_folder)
 
 	    # load MDS-ED dataframe
-	    df_mapped = pd.read_csv('data/memmap/df_memmap.csv')
-            for c in ['Diagnoses_labels','Deterioration_labels']:
-	    	df_mapped[c] = df_mapped[c].apply(lambda x:eval(x))
-	    lbl_itos = self.lbl_itos
-            
+	    df_features = pd.read_csv('data/memmap/df_memmap.csv')
+	    
+	    demographics_columns = [i for i in df_features.columns if 'demographics_' in i]
+	    biometrics_columns = [i for i in df_features.columns if 'biometrics_' in i]
+	    vitalparameters_columns = [i for i in df_features.columns if 'vitalparemeters_' in i]
+	    labvalues_columns = [i for i in df_features.columns if 'labvalues_' in i]
+            all_features = demographics_columns + biometrics_columns + vitalparameters_columns + labvalues_columns
+	    diagnoses_columns = [i for i in df_features.columns if 'diagnoses_' in i]
+	    deterioration_columns = [i for i in df_features.columns if 'deterioration_' in i]
+
+	    if task=='diags':
+	    	lbl_itos = diagnoses_columns
+		self.lbl_itos = lbl_itos
+		num_classes = len(lbl_itos)
+		self.col_target = 'diagnoses_columns'
+		self.cols_static = all_features
+		    
+	    elif task=='det':
+		lbl_itos = deterioration_columns
+		self.lbl_itos = lbl_itos
+		num_classes = len(lbl_itos)
+		self.col_target = 'deterioration_columns'
+		self.cols_static = all_features    
+
+	    
             print("Folder:",target_folder,"Samples:",len(df_mapped))
 
             if(self.ds_mean is None):
@@ -394,8 +432,8 @@ class Main_ECG(lp.LightningModule):
                 
 
                 # keep first record per visit during evaluations (val/test)
-                df_val = df_val[df_val['ecg_no_within_stay']==0]
-                df_test = df_test[df_test['ecg_no_within_stay']==0]
+                df_val = df_val[df_val['general_ecg_no_within_stay']==0]
+                df_test = df_test[df_test['general_ecg_no_within_stay']==0]
                 
                 train_datasets.append(TimeseriesDatasetCrops(df_train,
                                                              self.hparams.input_size,
@@ -403,7 +441,7 @@ class Main_ECG(lp.LightningModule):
                                                              chunk_length=chunk_length_train,
                                                              min_chunk_length=self.hparams.input_size, 
                                                              cols_static=self.cols_static,
-                                                             col_data="data", 
+                                                             col_data="general_data", 
                                                              col_lbl =self.col_target,
                                                              stride=stride_train,
                                                              transforms=tfms_ptb_xl_cpc,
@@ -416,7 +454,7 @@ class Main_ECG(lp.LightningModule):
                                                            chunk_length=chunk_length_valtest,
                                                            min_chunk_length=self.hparams.input_size, 
                                                            cols_static=self.cols_static, 
-                                                           col_data="data", 
+                                                           col_data="general_data", 
                                                            col_lbl =self.col_target,
                                                            stride=stride_valtest,
                                                            transforms=tfms_ptb_xl_cpc,
@@ -428,7 +466,7 @@ class Main_ECG(lp.LightningModule):
                                                             chunk_length=chunk_length_valtest,
                                                             min_chunk_length=self.hparams.input_size, 
                                                             cols_static=self.cols_static, 
-                                                            col_data="data", 
+                                                            col_data="general_data", 
                                                             col_lbl =self.col_target,
                                                             stride=stride_valtest,
                                                             transforms=tfms_ptb_xl_cpc,
