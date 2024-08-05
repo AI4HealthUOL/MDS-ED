@@ -22,6 +22,6 @@ We provide a convenient pipeline for our multimodal (ECG waveforms + tabular) ex
 python main_ecg.py --data data/memmap --input-size 250 --finetune-dataset mds_diags --architecture s4mm --precision 32 --s4-n 8 --s4-h 512 --batch-size 32 --epochs 20 --export-predictions-path multi_diags/ > multi_diags/multi_diags.txt
 ```
 ```
-python main_ecg.py --data data/memmap --input-size 250 --finetune-dataset mds_decomp --architecture s4mm --precision 32 --s4-n 8 --s4-h 512 --batch-size 32 --epochs 20 --export-predictions-path multi_det/ > multi_det/multi_det.txt
+python main_ecg.py --data data/memmap --input-size 250 --finetune-dataset mds_det --architecture s4mm --precision 32 --s4-n 8 --s4-h 512 --batch-size 32 --epochs 20 --export-predictions-path multi_det/ > multi_det/multi_det.txt
 ```
 
