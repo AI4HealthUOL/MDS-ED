@@ -7,10 +7,17 @@ from datetime import timedelta
 from tqdm import tqdm
 import glob
 from sklearn.linear_model import LinearRegression
-from clinical_ts.ecg_utils import prepare_mimicecg
-from clinica_ts.timeseries_utils import reformat_as_memmap
+
+from ecg_utils import prepare_mimicecg
+from timeseries_utils import reformat_as_memmap
+
 import argparse
 from pathlib import Path
+import icd10
+
+!pip install dtype_diet
+from dtype_diet import report_on_dataframe, optimize_dtypes
+
 pd.options.mode.chained_assignment = None
 
 
@@ -33,6 +40,7 @@ reformat_as_memmap(df,
                    skip_export_signals=False)
 
 
+
 # Preprocess the tabular 
 
 df_diags = pd.read_csv('data/records_w_diag_icd10.csv')
@@ -43,7 +51,6 @@ df_diags['ecg_time'] = pd.to_datetime(df_diags['ecg_time'])
 df_edstays['intime'] = pd.to_datetime(df_edstays['intime'])
 df_edstays['outtime'] = pd.to_datetime(df_edstays['outtime'])
 df_diags['dod'] = pd.to_datetime(df_diags['dod'])
-
 
 rows_to_keep = []
 
@@ -219,7 +226,6 @@ df_filtered_diags['ICU_stay'] = icu_stay
 icu_cols = ['ICU_24H', 'ICU_stay']
 df_filtered_diags[icu_cols] = df_filtered_diags[icu_cols].astype(float)
 
-
 # targets with proedures
 df_proc = pd.read_csv('data/procedures_icd.csv.gz')
 df_proc['chartdate'] = pd.to_datetime(df_proc['chartdate'])
@@ -301,6 +307,8 @@ df_filtered_diags['cardiac_arrest'] = cardiac_arrest
 
 vasopressors='epinephrine, norepinephrine, vasopressin, dobutamine, dopamine, or phenylephrine'
 inotropes='epinephrine, dobutamine, or dopamine'
+
+
 df_pyxis = pd.read_csv('data/pyxis.csv.gz')
 df_pyxis = df_pyxis[df_pyxis['subject_id'].isin(df_filtered_diags['subject_id'].unique())]
 df_pyxis = df_pyxis.dropna(subset='gsn')
@@ -413,6 +421,7 @@ df_features.drop(columns=decompensation_model_cols, inplace=True)
 df_features.drop(columns=['fold'], inplace=True)
 labels_cols = ['Diagnoses_labels','Deterioration_labels']
 
+
 # features
 
 df_features['gender'] = df_features['gender'].apply(lambda x: 1 if x=='M' else 0)
@@ -430,7 +439,7 @@ def map_race(row):
     
 df_features['race_mapped'] = df_features['race'].apply(map_race)
 
-race_dummies = pd.get_dummies(df_features['race_mapped'], prefix='ethnicity')
+race_dummies = pd.get_dummies(df_features['race_mapped'], prefix='demographics_ethnicity')
 
 df_features = pd.concat([df_features, race_dummies], axis=1)
 
@@ -476,9 +485,11 @@ for _, row in df_features.iterrows():
             out_data[col].append(np.nan)
 
 for col in omr_pivot.columns:
-    df_features[col] = out_data[col]
+    df_features['biometrics_'+col] = out_data[col]
     
-df_features.drop(columns=['BMI','eGFR'], inplace=True)
+    
+    
+df_features.drop(columns=['biometrics_BMI','biometrics_eGFR'], inplace=True)
 
 # vital signs
 df_vitalsign = pd.read_csv('data/vitalsign.csv.gz')
@@ -553,26 +564,26 @@ for i, row in df_features.iterrows():
                 coeff = model.coef_[0][0]
                 
                 # Store computed features
-                features[f"{col}_mean"] = mean_val
-                features[f"{col}_median"] = median_val
-                features[f"{col}_min"] = min_val
-                features[f"{col}_max"] = max_val
-                features[f"{col}_std"] = std_val
-                features[f"{col}_first"] = first_val
-                features[f"{col}_last"] = last_val
-                features[f"{col}_rate_change"] = rate_change
-                features[f"{col}_coeff"] = coeff
+                features[f"vitalparemeters_{col}_mean"] = mean_val
+                features[f"vitalparemeters_{col}_median"] = median_val
+                features[f"vitalparemeters_{col}_min"] = min_val
+                features[f"vitalparemeters_{col}_max"] = max_val
+                features[f"vitalparemeters_{col}_std"] = std_val
+                features[f"vitalparemeters_{col}_first"] = first_val
+                features[f"vitalparemeters_{col}_last"] = last_val
+                features[f"vitalparemeters_{col}_rate_change"] = rate_change
+                features[f"vitalparemeters_{col}_coeff"] = coeff
             else:
                 # If no values, set all features to NaN
-                features[f"{col}_mean"] = np.nan
-                features[f"{col}_median"] = np.nan
-                features[f"{col}_min"] = np.nan
-                features[f"{col}_max"] = np.nan
-                features[f"{col}_std"] = np.nan
-                features[f"{col}_first"] = np.nan
-                features[f"{col}_last"] = np.nan
-                features[f"{col}_rate_change"] = np.nan
-                features[f"{col}_coeff"] = np.nan
+                features[f"vitalparemeters_{col}_mean"] = np.nan
+                features[f"vitalparemeters_{col}_median"] = np.nan
+                features[f"vitalparemeters_{col}_min"] = np.nan
+                features[f"vitalparemeters_{col}_max"] = np.nan
+                features[f"vitalparemeters_{col}_std"] = np.nan
+                features[f"vitalparemeters_{col}_first"] = np.nan
+                features[f"vitalparemeters_{col}_last"] = np.nan
+                features[f"vitalparemeters_{col}_rate_change"] = np.nan
+                features[f"vitalparemeters_{col}_coeff"] = np.nan
         
         # Append features to vital_features
         vital_features.append(features)
@@ -581,15 +592,15 @@ for i, row in df_features.iterrows():
         # If no vital sign data for the stay_id, append NaN for all features
         features = {}
         for col in vp_cols:
-            features[f"{col}_mean"] = np.nan
-            features[f"{col}_median"] = np.nan
-            features[f"{col}_min"] = np.nan
-            features[f"{col}_max"] = np.nan
-            features[f"{col}_std"] = np.nan
-            features[f"{col}_first"] = np.nan
-            features[f"{col}_last"] = np.nan
-            features[f"{col}_rate_change"] = np.nan
-            features[f"{col}_coeff"] = np.nan
+            features[f"vitalparemeters_{col}_mean"] = np.nan
+            features[f"vitalparemeters_{col}_median"] = np.nan
+            features[f"vitalparemeters_{col}_min"] = np.nan
+            features[f"vitalparemeters_{col}_max"] = np.nan
+            features[f"vitalparemeters_{col}_std"] = np.nan
+            features[f"vitalparemeters_{col}_first"] = np.nan
+            features[f"vitalparemeters_{col}_last"] = np.nan
+            features[f"vitalparemeters_{col}_rate_change"] = np.nan
+            features[f"vitalparemeters_{col}_coeff"] = np.nan
             
         vital_features.append(features)
         
@@ -608,7 +619,7 @@ for i,row in df_features.iterrows():
     else:
         acuities.append(np.nan)
         
-df_features['acuity'] = acuities
+df_features['vitalparemeters_acuity'] = acuities
 
 df_labtitles = pd.read_csv('data/d_labitems.csv.gz', compression='gzip')
 df_labevents = pd.read_csv('data/labevents.csv.gz', compression='gzip', low_memory=False)
@@ -663,7 +674,7 @@ df_labs = df_labs.merge(top_fluid_counts[['label', 'fluid']], on=['label', 'flui
 
 lab = []
 
-for i, row in tqdm(df_features.iterrows()):
+for i, row in df_features.iterrows():
     
     df_lb = df_labs[df_labs['subject_id'] == row['subject_id']]
     df_lb = df_lb[(df_lb['charttime'] >= row['intime']) & (df_lb['charttime'] <= row['90min'])]
@@ -711,41 +722,41 @@ for i, row in df_features.iterrows():
                 coeff = model.coef_[0][0]
                 
                 # Store computed features
-                features[f"{col}_mean"] = mean_val
-                features[f"{col}_median"] = median_val
-                features[f"{col}_min"] = min_val
-                features[f"{col}_max"] = max_val
-                features[f"{col}_std"] = std_val
-                features[f"{col}_first"] = first_val
-                features[f"{col}_last"] = last_val
-                features[f"{col}_rate_change"] = rate_change
-                features[f"{col}_coeff"] = coeff
+                features[f"labvalues_{col}_mean"] = mean_val
+                features[f"labvalues_{col}_median"] = median_val
+                features[f"labvalues_{col}_min"] = min_val
+                features[f"labvalues_{col}_max"] = max_val
+                features[f"labvalues_{col}_std"] = std_val
+                features[f"labvalues_{col}_first"] = first_val
+                features[f"labvalues_{col}_last"] = last_val
+                features[f"labvalues_{col}_rate_change"] = rate_change
+                features[f"labvalues_{col}_coeff"] = coeff
             else:
                 # If no values, set all features to NaN
-                features[f"{col}_mean"] = np.nan
-                features[f"{col}_median"] = np.nan
-                features[f"{col}_min"] = np.nan
-                features[f"{col}_max"] = np.nan
-                features[f"{col}_std"] = np.nan
-                features[f"{col}_first"] = np.nan
-                features[f"{col}_last"] = np.nan
-                features[f"{col}_rate_change"] = np.nan
-                features[f"{col}_coeff"] = np.nan
+                features[f"labvalues_{col}_mean"] = np.nan
+                features[f"labvalues_{col}_median"] = np.nan
+                features[f"labvalues_{col}_min"] = np.nan
+                features[f"labvalues_{col}_max"] = np.nan
+                features[f"labvalues_{col}_std"] = np.nan
+                features[f"labvalues_{col}_first"] = np.nan
+                features[f"labvalues_{col}_last"] = np.nan
+                features[f"labvalues_{col}_rate_change"] = np.nan
+                features[f"labvalues_{col}_coeff"] = np.nan
         
         lab_features.append(features)
     
     else:
         features = {}
         for col in labs_to_keep:
-            features[f"{col}_mean"] = np.nan
-            features[f"{col}_median"] = np.nan
-            features[f"{col}_min"] = np.nan
-            features[f"{col}_max"] = np.nan
-            features[f"{col}_std"] = np.nan
-            features[f"{col}_first"] = np.nan
-            features[f"{col}_last"] = np.nan
-            features[f"{col}_rate_change"] = np.nan
-            features[f"{col}_coeff"] = np.nan
+            features[f"labvalues_{col}_mean"] = np.nan
+            features[f"labvalues_{col}_median"] = np.nan
+            features[f"labvalues_{col}_min"] = np.nan
+            features[f"labvalues_{col}_max"] = np.nan
+            features[f"labvalues_{col}_std"] = np.nan
+            features[f"labvalues_{col}_first"] = np.nan
+            features[f"labvalues_{col}_last"] = np.nan
+            features[f"labvalues_{col}_rate_change"] = np.nan
+            features[f"labvalues_{col}_coeff"] = np.nan
             
         lab_features.append(features)
         
@@ -753,31 +764,54 @@ lab_features_df = pd.DataFrame(lab_features)
 
 df_features = pd.concat([df_features, lab_features_df], axis=1)
 df_features.drop(columns='race_mapped', inplace=True)
+df_features.rename(columns={'age':'demographics_age','gender':'demographics_gender'}, inplace=True)
 
-features_cols = ['age','gender'] + df_features.columns[34:].tolist() 
+features_cols = ['demographics_gender','demographics_age'] + df_features.columns[34:].tolist() 
 
 for col in features_cols:
     mask_col = col + '_m'
     df_features[mask_col] = df_features[col].notna().astype(float)
     
 df_features[features_cols] = df_features[features_cols].fillna(df_features[features_cols].median())
-features_cols_withmask = [i+'_m' for i in features_cols]
 
-all_features = features_cols + features_cols_withmask
+
+columns_to_rename = [
+    'data', 'file_name', 'study_id', 'subject_id', 'ecg_time', 
+    'ed_stay_id', 'ed_hadm_id', 'hosp_hadm_id', 'ed_diag_ed', 
+    'ed_diag_hosp', 'hosp_diag_hosp', 'all_diag_hosp', 'all_diag_all', 
+    'anchor_year', 'anchor_age', 'dod', 'ecg_no_within_stay', 
+    'ecg_taken_in_ed', 'ecg_taken_in_hosp', 'ecg_taken_in_ed_or_hosp', 
+    'strat_fold', 'stay_id', 'intime', 'outtime', 'race', '90min', 
+    'mortality_hours', 'mortality_days', 'hosp_dischtime', 'icu_time_hours'
+]
+renaming_dict = {col: f'general_{col}' for col in columns_to_rename}
+df_features.rename(columns=renaming_dict, inplace=True)
+
 
 lbls_diags = lbls_diags 
 lbls_det = decompensation_model_cols 
 
-col_diags = 'Diagnoses_labels'
-col_det = 'Deterioration_labels'
+for i, label in enumerate(lbls_diags):
+    df_features[f'diagnoses_{label}'] = df_features['Diagnoses_labels'].apply(lambda x: x[i])
 
-task_mapping = {
-    'diags': {'lbls': lbls_diags, 'col': col_diags},
-    'det': {'lbls': lbls_det, 'col': col_det}
-}
+for i, label in enumerate(lbls_det):
+    df_features[f'deterioration_{label}'] = df_features['Deterioration_labels'].apply(lambda x: x[i])
 
-with open('data/task_mapping.pkl', 'wb') as f:
-    pkl.dump(task_mapping, f)
+df_features.drop(['Diagnoses_labels', 'Deterioration_labels'], axis=1, inplace=True)
 
-np.save('data/cols_static.npy', all_features)
-df_features.to_csv('data/memmap/df_memmap.csv', index=False)
+diagnoses_columns = [i for i in df_features.columns if 'diagnoses_' in i]
+new_lbs_diags = ['diagnoses_'+i+'_'+icd10.find(i).description for i in lbls_diags]
+rename_dict = dict(zip(diagnoses_columns, new_lbs_diags))
+df_features.rename(columns=rename_dict, inplace=True)
+
+columns_to_drop = ['general_ed_diag_ed', 'general_ed_diag_hosp', 
+                   'general_hosp_diag_hosp', 'general_all_diag_hosp', 
+                   'general_all_diag_all']
+
+df_features = df_features.drop(columns=columns_to_drop)
+proposed_df = report_on_dataframe(df_features, unit='MB')
+
+new_df = optimize_dtypes(df_features, proposed_df)
+new_df.to_csv('data/memmap/df_memmap.csv', index=False)
+
+
