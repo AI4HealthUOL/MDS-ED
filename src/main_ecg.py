@@ -73,6 +73,8 @@ def mcprc_flat(targs,preds,classes):
     return np.array(list(res.values()))
 
 
+
+
 def prepare_consistency_mapping(codes_unique, codes_unique_all, propagate_all=False):
     res={}
     for c in codes_unique:
@@ -82,6 +84,146 @@ def prepare_consistency_mapping(codes_unique, codes_unique_all, propagate_all=Fa
             res[c]=np.intersect1d([c[:i] for i in range(3,len(c)+1)],codes_unique_all)
     return res
 
+def prepare_mimic_ecg(finetune_dataset, target_folder, df_mapped=None):
+    # e.g. mimic_all_all_all_all_2000_5A #ED mimic_{subsettrain}_{labelsettrain}_{subsettest}_{labelsettest}_{mincnt}_{digits} where _{digits} is optional
+    #subsettrain: all/ed/hosp/allnonzero/ednonzero/hospnonzero/allnonzerofirst/ednonzerofirst/hospnonzerofirst/allfirst/edfirst/hospfirst default: allnonzero
+    #labelsettrain: {all/hosp/ed}{/af/I} first part selects the label set all: both ed diagnosis and hosp diagnosis hosp: just hosp diagnosis ed: just ed diagnosis; second part: can be omitted or af for af labels or collection of uppercase letters such as I to select specific label sets
+    #similar for subsettest/labelsettest but labelsettest can only be {all/hosp/ed}
+    #digits: 3/4/5/3A/4A/5A or just empty corresponding to I48, I48.1 or I48.19; append an A to include all ancestors
+    def flatten(l):
+        return [item for sublist in l for item in sublist]  
+
+    subsettrain = finetune_dataset.split("_")[1]
+    labelsettrain = finetune_dataset.split("_")[2]
+    subsettest = finetune_dataset.split("_")[3]
+    labelsettest = finetune_dataset.split("_")[4]
+    min_cnt = int(finetune_dataset.split("_")[5])
+    if(len(finetune_dataset.split("_"))<7):
+        digits = None
+        propagate_all = False
+    else:
+        digits = finetune_dataset.split("_")[6]
+        if(digits[-1]=="A"):
+            propagate_all = True
+            digits= int(digits[:-1])
+        else:
+            propagate_all = False
+            digits = int(digits)
+
+    #load label dataframe
+    df_diags = pd.read_pickle(target_folder/"records_w_diag_icd10.pkl")
+
+    #select the desired label set (train)
+    if(labelsettrain.startswith("hosp")):#just hospital discharge diagnosis
+        df_diags["label_train"]=df_diags["ed_or_hosp_diag"]
+        labelsettrain=labelsettrain[len("hosp"):]
+    elif(labelsettrain.startswith("ed")):#just ED discharge diagnosis
+        df_diags["label_train"]=df_diags["ed_diag_ed"]
+        labelsettrain=labelsettrain[len("ed"):]
+    elif(labelsettrain.startswith("all")):#both ed and hospital discharge diagnosis (the latter if available)
+        df_diags["label_train"]=df_diags["ed_or_hosp_diag"]
+        selection = df_diags["ed_or_hosp_diag"].apply(lambda x: len(x)==0)
+        df_diags.loc[selection,"label_train"]=df_diags.loc[selection,"ed_diag_ed"]# if no discharge diagnosis is available, use the ED diagnosis
+        labelsettrain=labelsettrain[len("all"):]
+    else:
+        assert(False)
+
+    if(labelsettest.startswith("hosp")):#just hospital discharge diagnosis
+        df_diags["label_test"]=df_diags["ed_or_hosp_diag"]
+    elif(labelsettest.startswith("ed")):#just ED discharge diagnosis
+        df_diags["label_test"]=df_diags["ed_diag_ed"]
+    elif(labelsettest.startswith("all")):#both ed and hospital discharge diagnosis (the latter if available)
+        df_diags["label_test"]=df_diags["ed_or_hosp_diag"]
+        selection = df_diags["ed_or_hosp_diag"].apply(lambda x: len(x)==0)
+        df_diags.loc[selection,"label_test"]=df_diags.loc[selection,"ed_diag_ed"]# if no discharge diagnosis is available, use the ED diagnosis
+    else:
+        assert(False)
+
+    df_diags["has_statements_train"]=df_diags["label_train"].apply(lambda x: len(x)>0)#keep track if there were any ICD statements for this sample
+    df_diags["has_statements_test"]=df_diags["label_test"].apply(lambda x: len(x)>0)#keep track if there were any ICD statements for this sample
+    
+    #first truncate to desired number of digits
+    if(digits is not None):
+        df_diags["label_train"]=df_diags["label_train"].apply(lambda x: list(set([y.strip()[:digits] for y in x])))
+        df_diags["label_test"]=df_diags["label_test"].apply(lambda x: list(set([y.strip()[:digits] for y in x])))
+    
+    #remove trailing placeholder Xs    
+    df_diags["label_train"]=df_diags["label_train"].apply(lambda x: list(set([y.rstrip("X") for y in x])))
+    df_diags["label_test"]=df_diags["label_test"].apply(lambda x: list(set([y.rstrip("X") for y in x])))
+    
+    # apply labelset selection af or I for example
+    if(labelsettrain=="af"):#special case for atrial fibrillation
+        df_diags["label_train"]=df_diags["label_train"].apply(lambda x: [c for c in x if c.startswith("I48")])
+    elif(labelsettrain!=""):#special case for specific categories
+        df_diags["label_train"]=df_diags["label_train"].apply(lambda x: [c for c in x if c[0] in labelsettrain])
+    
+    #apply consistency mapping
+    col_flattrain = flatten(np.array(df_diags["label_train"]))
+    cons_maptrain = prepare_consistency_mapping(np.unique(col_flattrain),np.unique(col_flattrain),propagate_all)
+    df_diags["label_train"]=df_diags["label_train"].apply(lambda x: list(set(flatten([cons_maptrain[y] for y in x]))))
+    col_flattest = flatten(np.array(df_diags["label_test"]))
+    cons_maptest = prepare_consistency_mapping(np.unique(col_flattest),np.unique(col_flattrain),propagate_all)
+    df_diags["label_test"]=df_diags["label_test"].apply(lambda x: list(set(flatten([cons_maptest[y] for y in x]))))
+
+
+    #identify statements/lbl_itos only based on labelsettrain!
+    col_flat = flatten(np.array(df_diags["label_train"]))
+    codes,counts = np.unique(col_flat,return_counts=True)
+    idxs = np.argsort(counts)[::-1]
+    codes = codes[idxs]
+    counts = counts[idxs]
+    codes=codes[np.where(counts>=min_cnt)[0]]
+
+    lbl_itos=codes
+    
+    if(df_mapped is not None):
+        print("Label set:",len(lbl_itos),"labels.")#,lbl_itos)
+        
+        #join the two dataframes
+        df_diags = df_diags.set_index("study")
+        df_diags.drop(["patient_id","ecg_time"],axis=1,inplace=True)
+        print(df_mapped.columns)
+        df_mapped = df_mapped.join(df_diags,on="study")
+        max_fold = df_mapped.strat_fold.max()
+        
+        #TRAIN select the desired subset (all/ed/hosp/allnonzero/ednonzero/hospnonzero)
+        df_mappedtrain = df_mapped[df_mapped.strat_fold<max_fold-1].copy()#pick the first n-2 folds
+        df_mappedtrain["label"]=df_mappedtrain["label_train"]
+        if(subsettrain.startswith("all")):#ed and hosp
+            df_mappedtrain=df_mappedtrain[df_mappedtrain["ecg_taken_in_ed_or_hosp"]].copy()
+        elif(subsettrain.startswith("ed")):#ed only
+            df_mappedtrain=df_mappedtrain[df_mappedtrain["ecg_taken_in_ed"]].copy()
+        elif(subsettrain.startswit("hosp")):#hosp only
+            df_mappedtrain=df_mappedtrain[df_mappedtrain["ecg_taken_in_hosp"]].copy()
+        #include samples with zero ICD codes (e.g. not admitted to hospital if predicting hosp diagnosis, or missing outputs from the report)
+        df_mappedtrain = df_mappedtrain[df_mappedtrain.has_statements_train==True].copy()
+                
+        if(subsettrain.endswith("first")):#only select first ecg
+            df_mappedtrain = df_mappedtrain[df_mappedtrain.ecg_no_within_stay==0].copy()
+        
+        #TEST select the desired subset (all/ed/hosp/allnonzero/ednonzero/hospnonzero)
+        df_mappedtest = df_mapped[df_mapped.strat_fold>=(max_fold-1)].copy()#pick the final two folds
+        df_mappedtest["label"]=df_mappedtest["label_test"]
+        if(subsettest.startswith("all")):#ed and hosp
+            df_mappedtest=df_mappedtest[df_mappedtest["ecg_taken_in_ed_or_hosp"]].copy()
+        elif(subsettest.startswith("ed")):#ed only
+            df_mappedtest=df_mappedtest[df_mappedtest["ecg_taken_in_ed"]].copy()
+        elif(subsettrain.startswit("hosp")):#hosp only
+            df_mappedtest=df_mappedtest[df_mappedtest["ecg_taken_in_hosp"]].copy()
+        #include samples with zero ICD codes (e.g. not admitted to hospital if predicting hosp diagnosis, or missing outputs from the report)
+        df_mappedtest = df_mappedtest[df_mappedtest.has_statements_test==True].copy()
+                
+        if(subsettest.endswith("first")):#only select first ecg
+            df_mappedtest = df_mappedtest[df_mappedtest.ecg_no_within_stay==0].copy()
+        
+        #combine train and test
+        df_mapped = pd.concat([df_mappedtrain,df_mappedtest])
+        #select only the selected statements
+        lbl_stoi={s:i for i,s in enumerate(lbl_itos)}
+        df_mapped["label"]=df_mapped["label"].apply(lambda x: multihot_encode([lbl_stoi[y] for y in x if y in codes],len(lbl_itos)))
+        
+    return df_mapped, lbl_itos
+    
     
     
 class Main_ECG(lp.LightningModule):
@@ -109,39 +251,59 @@ class Main_ECG(lp.LightningModule):
         elif(hparams.finetune_dataset.startswith("mimic")):
             _, lbl_itos = prepare_mimic_ecg(self.hparams.finetune_dataset,Path(self.hparams.data.split(",")[0]))
             num_classes = len(lbl_itos)
+            
         elif (hparams.finetune_dataset.startswith("mds")):
             task = hparams.finetune_dataset.split('_')[-1]
-		
-
-	    df_features = pd.read_csv('data/memmap/df_memmap.csv')
-	    
-	    demographics_columns = [i for i in df_features.columns if 'demographics_' in i]
-	    biometrics_columns = [i for i in df_features.columns if 'biometrics_' in i]
-	    vitalparameters_columns = [i for i in df_features.columns if 'vitalparemeters_' in i]
-	    labvalues_columns = [i for i in df_features.columns if 'labvalues_' in i]
+            self.task = task
+            
+            df = pd.read_csv('data/memmap/mds_ed.csv')
+            
+            demographics_columns = [i for i in df.columns if 'demographics_' in i]
+            biometrics_columns = [i for i in df.columns if 'biometrics_' in i]
+            vitalparameters_columns = [i for i in df.columns if 'vitalparemeters_' in i]
+            labvalues_columns = [i for i in df.columns if 'labvalues_' in i]
             all_features = demographics_columns + biometrics_columns + vitalparameters_columns + labvalues_columns
-	    diagnoses_columns = [i for i in df_features.columns if 'diagnoses_' in i]
-	    deterioration_columns = [i for i in df_features.columns if 'deterioration_' in i]
 
-	    if task=='diags':
-	    	lbl_itos = diagnoses_columns
-		self.lbl_itos = lbl_itos
-		num_classes = len(lbl_itos)
-		self.col_target = 'diagnoses_columns'
-		self.cols_static = all_features
-		    
-	    elif task=='det':
-		lbl_itos = deterioration_columns
-		self.lbl_itos = lbl_itos
-		num_classes = len(lbl_itos)
-		self.col_target = 'deterioration_columns'
-		self.cols_static = all_features        
+            all_features_with_masks = []
 
+            for col in all_features:
+                mask_col = col + '_m'
+                df[mask_col] = df[col].notna().astype(float)
+                all_features_with_masks.append(col)
+                all_features_with_masks.append(mask_col)
 
-	    
+            selected_folds = df[df['general_strat_fold'].isin(range(0, 18))]
+
+            medians = selected_folds[all_features].median()
+            df[all_features] = df[all_features].fillna(medians)
+
+            diagnoses_columns = [i for i in df.columns if 'diagnoses_' in i]
+            deterioration_columns = [i for i in df.columns if 'deterioration_' in i]
+
+            if task=='diags':
+                lbl_itos = diagnoses_columns
+                self.lbl_itos = lbl_itos
+                num_classes = len(lbl_itos)
+                df['col_target'] = df[diagnoses_columns].apply(list, axis=1)
+                self.col_target = 'col_target'
+                self.cols_static = all_features_with_masks
+            
+            elif task=='det':
+                lbl_itos = deterioration_columns
+                self.lbl_itos = lbl_itos
+                num_classes = len(lbl_itos)
+                df['col_target'] = df[deterioration_columns].apply(list, axis=1)
+                self.col_target = 'col_target'
+                self.cols_static = all_features_with_masks
+                
+                     
+        
+
         # also works in the segmentation case
         self.criterion = F.cross_entropy if (hparams.finetune_dataset == "thew" or hparams.finetune_dataset.startswith("segrhythm"))  else F.binary_cross_entropy_with_logits
+        
         #self.criterion = nn.MSELoss() #self.criterion = nn.L1Loss()
+        
     
         if(hparams.architecture=="xresnet1d50"):
             self.model = xresnet1d50(input_channels=hparams.input_channels, num_classes=num_classes)
@@ -158,7 +320,7 @@ class Main_ECG(lp.LightningModule):
                                  d_model=self.hparams.s4_h, 
                                  n_layers = self.hparams.s4_layers,
                                  bidirectional=True)#,backbone="s4new")
-		
+            
         elif(hparams.architecture=='s4mm'):
             self.model = S4ModelMM(d_input=hparams.input_channels, 
                                    d_output=num_classes, 
@@ -168,6 +330,16 @@ class Main_ECG(lp.LightningModule):
                                    n_layers = self.hparams.s4_layers,
                                    bidirectional=True,
                                   tab_features=len(self.cols_static))
+            
+            
+        elif(hparams.architecture=='mamba'):
+            self.model = MambaTSModel(d_model=hparams.s4_h,
+                                      d_state=hparams.s4_n,
+                                        d_input=hparams.input_channels,
+                                        d_output=num_classes)
+            
+            
+            
         else:
             assert(False)
         
@@ -203,6 +375,72 @@ class Main_ECG(lp.LightningModule):
             self.test_preds[i].clear()
             self.test_targs[i].clear()
 
+            
+            
+            
+            
+            
+           
+    '''
+    def eval_scores(self, targs, preds, classes=None, bootstrap=False):
+        # Calculate Mean Absolute Error (MAE)
+        #mae = mean_absolute_error(targs, preds, multioutput='raw_values')
+        mae = mean_squared_error(targs, preds, multioutput='raw_values')
+
+        # Prepare the results dictionary
+        res = {f'{i}_mae': v for i, v in enumerate(mae)}
+
+        if bootstrap:
+            # If bootstrap is enabled, perform bootstrap resampling here if needed
+            pass
+
+        return res
+
+    def on_valtest_epoch_eval(self, outputs_all, dataloader_idx, test=False, inference_only=False):
+        preds_all = torch.cat(outputs_all["preds"]).cpu().numpy()
+        targs_all = torch.cat(outputs_all["targs"]).cpu().numpy()
+
+        if not inference_only:
+            # Calculate MAE without aggregation
+            #mae_noagg = mean_absolute_error(targs_all, preds_all, multioutput='raw_values')
+            mae_noagg = mean_squared_error(targs_all, preds_all, multioutput='raw_values')
+            
+            
+            res_noagg = {f'mae_noagg_{i}': v for i, v in enumerate(mae_noagg)}
+            self.log_dict(res_noagg)
+            print("epoch", self.current_epoch, "test" if test else "val", "noagg:", res_noagg)
+
+        # Aggregate predictions and targets if necessary
+        preds_all_agg, targs_all_agg = aggregate_predictions(preds_all, targs_all,
+                                                             self.test_idmaps[dataloader_idx] if test else self.val_idmaps[dataloader_idx],
+                                                             aggregate_fn=np.mean)
+
+        if not inference_only:
+            # Calculate MAE with aggregation
+            #mae_agg = mean_absolute_error(targs_all_agg, preds_all_agg, multioutput='raw_values')
+            mae_agg = mean_squared_error(targs_all_agg, preds_all_agg, multioutput='raw_values')
+            
+            
+            res_agg = {f'mae_agg_{i}': v for i, v in enumerate(mae_agg)}
+            self.log_dict(res_agg)
+            print("epoch", self.current_epoch, "test" if test else "val", "agg:", res_agg)
+
+        # Export predictions if needed
+        if test and self.hparams.export_predictions_path != "":
+            df_test = pd.read_pickle(Path(self.hparams.export_predictions_path) / ("df_test" + str(dataloader_idx) + ".pkl"))
+            df_test["preds"] = list(preds_all_agg)
+            df_test["targs"] = list(targs_all_agg)
+            df_test.to_pickle(Path(self.hparams.export_predictions_path) / ("df_test" + str(dataloader_idx) + ".pkl"))'''
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     def eval_scores(self, targs,preds,classes=None,bootstrap=False,precision_recall=False):
         
@@ -288,7 +526,9 @@ class Main_ECG(lp.LightningModule):
                                            classes=self.lbl_itos,
                                            bootstrap=test,
                                            precision_recall=False)
-
+                
+                
+                
                 
                 res_agg = {k+"_agg_"+("test" if test else "val")+str(dataloader_idx):v for k,v in res_agg.items()}
                 res_agg = {k.replace("(","_").replace(")","_"):v for k,v in res_agg.items()}
@@ -302,7 +542,10 @@ class Main_ECG(lp.LightningModule):
                 df_test["targs"]=list(targs_all_agg)             
                 df_test.to_pickle(Path(self.hparams.export_predictions_path)/("df_test"+str(dataloader_idx)+".pkl"))
 
-
+            
+            
+            
+            
     def setup(self, stage):
         rhythm = self.hparams.finetune_dataset.startswith("rhythm")
         if(rhythm):
@@ -329,34 +572,52 @@ class Main_ECG(lp.LightningModule):
             
             target_folder = Path(target_folder)           
             
-            #df_mapped, _,  mean, std = load_dataset(target_folder)
-
-	    # load MDS-ED dataframe
-	    df_features = pd.read_csv('data/memmap/df_memmap.csv')
-	    
-	    demographics_columns = [i for i in df_features.columns if 'demographics_' in i]
-	    biometrics_columns = [i for i in df_features.columns if 'biometrics_' in i]
-	    vitalparameters_columns = [i for i in df_features.columns if 'vitalparemeters_' in i]
-	    labvalues_columns = [i for i in df_features.columns if 'labvalues_' in i]
+            df_mapped, _,  mean, std = load_dataset(target_folder)
+            lbl_itos = self.lbl_itos
+            
+            
+            
+            df_mapped = pd.read_csv('data/memmap/mds_ed.csv')
+            
+            demographics_columns = [i for i in df_mapped.columns if 'demographics_' in i]
+            biometrics_columns = [i for i in df_mapped.columns if 'biometrics_' in i]
+            vitalparameters_columns = [i for i in df_mapped.columns if 'vitalparemeters_' in i]
+            labvalues_columns = [i for i in df_mapped.columns if 'labvalues_' in i]
             all_features = demographics_columns + biometrics_columns + vitalparameters_columns + labvalues_columns
-	    diagnoses_columns = [i for i in df_features.columns if 'diagnoses_' in i]
-	    deterioration_columns = [i for i in df_features.columns if 'deterioration_' in i]
 
-	    if task=='diags':
-	    	lbl_itos = diagnoses_columns
-		self.lbl_itos = lbl_itos
-		num_classes = len(lbl_itos)
-		self.col_target = 'diagnoses_columns'
-		self.cols_static = all_features
-		    
-	    elif task=='det':
-		lbl_itos = deterioration_columns
-		self.lbl_itos = lbl_itos
-		num_classes = len(lbl_itos)
-		self.col_target = 'deterioration_columns'
-		self.cols_static = all_features    
+            all_features_with_masks = []
 
-	    
+            for col in all_features:
+                mask_col = col + '_m'
+                df_mapped[mask_col] = df_mapped[col].notna().astype(float)
+                all_features_with_masks.append(col)
+                all_features_with_masks.append(mask_col)
+
+            selected_folds = df_mapped[df_mapped['general_strat_fold'].isin(range(0, 18))]
+
+            medians = selected_folds[all_features].median()
+            df_mapped[all_features] = df_mapped[all_features].fillna(medians)
+
+            diagnoses_columns = [i for i in df_mapped.columns if 'diagnoses_' in i]
+            deterioration_columns = [i for i in df_mapped.columns if 'deterioration_' in i]
+
+            if self.task=='diags':
+                lbl_itos = diagnoses_columns
+                self.lbl_itos = lbl_itos
+                num_classes = len(lbl_itos)
+                df_mapped['col_target'] = df_mapped[diagnoses_columns].apply(list, axis=1)
+                self.col_target = 'col_target'
+                self.cols_static = all_features_with_masks
+            
+            elif self.task=='det':
+                lbl_itos = deterioration_columns
+                self.lbl_itos = lbl_itos
+                num_classes = len(lbl_itos)
+                df_mapped['col_target'] = df_mapped[deterioration_columns].apply(list, axis=1)
+                self.col_target = 'col_target'
+                self.cols_static = all_features_with_masks
+                
+            
             print("Folder:",target_folder,"Samples:",len(df_mapped))
 
             if(self.ds_mean is None):
@@ -430,10 +691,15 @@ class Main_ECG(lp.LightningModule):
                 df_val = df_mapped[df_mapped.strat_fold==max_fold_id-1]
                 df_test = df_mapped[df_mapped.strat_fold==max_fold_id]
                 
-
-                # keep first record per visit during evaluations (val/test)
-                df_val = df_val[df_val['general_ecg_no_within_stay']==0]
-                df_test = df_test[df_test['general_ecg_no_within_stay']==0]
+                print(f'Val before first ecg per stay {len(df_val)}')
+                print(f'Test before first ecg per stay {len(df_test)}')
+                
+                df_val = df_val[df_val['ecg_no_within_stay']==0]
+                df_test = df_test[df_test['ecg_no_within_stay']==0]
+                
+                print(f'Val after first ecg per stay {len(df_val)}')
+                print(f'Test after first ecg per stay {len(df_test)}')
+            
                 
                 train_datasets.append(TimeseriesDatasetCrops(df_train,
                                                              self.hparams.input_size,
@@ -555,6 +821,12 @@ class Main_ECG(lp.LightningModule):
         return loss
     
     
+    
+    
+    
+    
+    
+    
     def training_step(self, train_batch, batch_idx):
         return self._step(train_batch,batch_idx,train=True)
         
@@ -564,7 +836,8 @@ class Main_ECG(lp.LightningModule):
     def test_step(self, test_batch, batch_idx, dataloader_idx=0):
         return self._step(test_batch,batch_idx,train=False,test=True, dataloader_idx=dataloader_idx)
     
-
+    
+    
     def configure_optimizers(self):
         
         if(self.hparams.optimizer == "sgd"):
