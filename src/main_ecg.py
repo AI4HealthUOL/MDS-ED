@@ -263,7 +263,7 @@ class Main_ECG(lp.LightningModule):
             
             demographics_columns = [i for i in df.columns if 'demographics_' in i]
             biometrics_columns = [i for i in df.columns if 'biometrics_' in i]
-            vitalparameters_columns = [i for i in df.columns if 'vitalparemeters_' in i]
+            vitalparameters_columns = [i for i in df.columns if 'vitals_' in i]
             labvalues_columns = [i for i in df.columns if 'labvalues_' in i]
             all_features = demographics_columns + biometrics_columns + vitalparameters_columns + labvalues_columns
 
@@ -584,7 +584,7 @@ class Main_ECG(lp.LightningModule):
             
             demographics_columns = [i for i in df_mapped.columns if 'demographics_' in i]
             biometrics_columns = [i for i in df_mapped.columns if 'biometrics_' in i]
-            vitalparameters_columns = [i for i in df_mapped.columns if 'vitalparemeters_' in i]
+            vitalparameters_columns = [i for i in df_mapped.columns if 'vitals_' in i]
             labvalues_columns = [i for i in df_mapped.columns if 'labvalues_' in i]
             all_features = demographics_columns + biometrics_columns + vitalparameters_columns + labvalues_columns
 
