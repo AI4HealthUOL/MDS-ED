@@ -601,26 +601,26 @@ for i, row in df_features.iterrows():
                 coeff = model.coef_[0][0]
                 
                 # Store computed features
-                features[f"vitalparemeters_{col}_mean"] = mean_val
-                features[f"vitalparemeters_{col}_median"] = median_val
-                features[f"vitalparemeters_{col}_min"] = min_val
-                features[f"vitalparemeters_{col}_max"] = max_val
-                features[f"vitalparemeters_{col}_std"] = std_val
-                features[f"vitalparemeters_{col}_first"] = first_val
-                features[f"vitalparemeters_{col}_last"] = last_val
-                features[f"vitalparemeters_{col}_rate_change"] = rate_change
-                features[f"vitalparemeters_{col}_coeff"] = coeff
+                features[f"vitals_{col}_mean"] = mean_val
+                features[f"vitals_{col}_median"] = median_val
+                features[f"vitals_{col}_min"] = min_val
+                features[f"vitals_{col}_max"] = max_val
+                features[f"vitals_{col}_std"] = std_val
+                features[f"vitals_{col}_first"] = first_val
+                features[f"vitals_{col}_last"] = last_val
+                features[f"vitals_{col}_rate_change"] = rate_change
+                features[f"vitals_{col}_coeff"] = coeff
             else:
                 # If no values, set all features to NaN
-                features[f"vitalparemeters_{col}_mean"] = np.nan
-                features[f"vitalparemeters_{col}_median"] = np.nan
-                features[f"vitalparemeters_{col}_min"] = np.nan
-                features[f"vitalparemeters_{col}_max"] = np.nan
-                features[f"vitalparemeters_{col}_std"] = np.nan
-                features[f"vitalparemeters_{col}_first"] = np.nan
-                features[f"vitalparemeters_{col}_last"] = np.nan
-                features[f"vitalparemeters_{col}_rate_change"] = np.nan
-                features[f"vitalparemeters_{col}_coeff"] = np.nan
+                features[f"vitals_{col}_mean"] = np.nan
+                features[f"vitals_{col}_median"] = np.nan
+                features[f"vitals_{col}_min"] = np.nan
+                features[f"vitals_{col}_max"] = np.nan
+                features[f"vitals_{col}_std"] = np.nan
+                features[f"vitals_{col}_first"] = np.nan
+                features[f"vitals_{col}_last"] = np.nan
+                features[f"vitals_{col}_rate_change"] = np.nan
+                features[f"vitals_{col}_coeff"] = np.nan
         
         # Append features to vital_features
         vital_features.append(features)
@@ -629,15 +629,15 @@ for i, row in df_features.iterrows():
         # If no vital sign data for the stay_id, append NaN for all features
         features = {}
         for col in vp_cols:
-            features[f"vitalparemeters_{col}_mean"] = np.nan
-            features[f"vitalparemeters_{col}_median"] = np.nan
-            features[f"vitalparemeters_{col}_min"] = np.nan
-            features[f"vitalparemeters_{col}_max"] = np.nan
-            features[f"vitalparemeters_{col}_std"] = np.nan
-            features[f"vitalparemeters_{col}_first"] = np.nan
-            features[f"vitalparemeters_{col}_last"] = np.nan
-            features[f"vitalparemeters_{col}_rate_change"] = np.nan
-            features[f"vitalparemeters_{col}_coeff"] = np.nan
+            features[f"vitals_{col}_mean"] = np.nan
+            features[f"vitals_{col}_median"] = np.nan
+            features[f"vitals_{col}_min"] = np.nan
+            features[f"vitals_{col}_max"] = np.nan
+            features[f"vitals_{col}_std"] = np.nan
+            features[f"vitals_{col}_first"] = np.nan
+            features[f"vitals_{col}_last"] = np.nan
+            features[f"vitals_{col}_rate_change"] = np.nan
+            features[f"vitals_{col}_coeff"] = np.nan
             
         vital_features.append(features)
         
@@ -658,7 +658,7 @@ for i,row in df_features.iterrows():
     else:
         acuities.append(np.nan)
         
-df_features['vitalparemeters_acuity'] = acuities
+df_features['vitals_acuity'] = acuities
 
 
 df_labtitles = pd.read_csv('data/d_labitems.csv.gz', compression='gzip')
@@ -848,5 +848,6 @@ df_diags['general_data'] = df_diags.index
 df_diags['general_study_id'] = df_diags['study_id']
 
 df_features['general_data'] = df_features['general_study_id'].map(df_diags.set_index('general_study_id')['general_data'])
-
+df_features.columns = df_features.columns.str.replace(' ', '_', regex=False)
+df_features.columns = df_features.columns.str.lower()
 df_features.to_csv('data/memmap/mds_ed.csv', index=False)
