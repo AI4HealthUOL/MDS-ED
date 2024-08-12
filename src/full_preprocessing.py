@@ -832,4 +832,21 @@ for i, label in enumerate(lbls_det):
 
 df_features.drop(['Diagnoses_labels', 'Deterioration_labels'], axis=1, inplace=True)
 
+columns_to_drop = [
+    'general_hosp_hadm_id', 
+    'general_hosp_diag_hosp',
+    'general_all_diag_hosp',
+    'general_all_diag_all',
+    'general_ecg_taken_in_ed',
+    'general_ecg_taken_in_hosp',
+    'general_ecg_taken_in_ed_or_hosp',
+    'general_stay_id'
+]
+
+df_diags = pd.read_csv('data/records_w_diag_icd10.csv')
+df_diags['general_data'] = df_diags.index
+df_diags['general_study_id'] = df_diags['study_id']
+
+df_features['general_data'] = df_features['general_study_id'].map(df_diags.set_index('general_study_id')['general_data'])
+
 df_features.to_csv('data/memmap/mds_ed.csv', index=False)
