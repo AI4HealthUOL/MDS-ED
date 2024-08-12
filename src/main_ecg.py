@@ -686,16 +686,16 @@ class Main_ECG(lp.LightningModule):
                                                             memmap_filename=target_folder/("memmap.npy")))     
                 
             else:
-                max_fold_id = df_mapped.strat_fold.max() #unfortunately 1-based for PTB-XL; sometimes 100 (Ribeiro)
-                df_train = df_mapped[df_mapped.strat_fold<max_fold_id-1]
-                df_val = df_mapped[df_mapped.strat_fold==max_fold_id-1]
-                df_test = df_mapped[df_mapped.strat_fold==max_fold_id]
+                max_fold_id = df_mapped.general_strat_fold.max() #unfortunately 1-based for PTB-XL; sometimes 100 (Ribeiro)
+                df_train = df_mapped[df_mapped.general_strat_fold<max_fold_id-1]
+                df_val = df_mapped[df_mapped.general_strat_fold==max_fold_id-1]
+                df_test = df_mapped[df_mapped.general_strat_fold==max_fold_id]
                 
                 print(f'Val before first ecg per stay {len(df_val)}')
                 print(f'Test before first ecg per stay {len(df_test)}')
                 
-                df_val = df_val[df_val['ecg_no_within_stay']==0]
-                df_test = df_test[df_test['ecg_no_within_stay']==0]
+                df_val = df_val[df_val['general_ecg_no_within_stay']==0]
+                df_test = df_test[df_test['general_ecg_no_within_stay']==0]
                 
                 print(f'Val after first ecg per stay {len(df_val)}')
                 print(f'Test after first ecg per stay {len(df_test)}')
