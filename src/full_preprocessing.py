@@ -40,17 +40,19 @@ reformat_as_memmap(df,
                    skip_export_signals=False)
 
 
-
 # Preprocess the tabular 
 
 df_diags = pd.read_csv('data/records_w_diag_icd10.csv')
 df_diags['all_diag_all']=df_diags['all_diag_all'].apply(lambda x:eval(x))
+
+
 df_edstays = pd.read_csv('data/edstays.csv.gz') 
 df_diags = df_diags[df_diags['ed_stay_id'].isin(df_edstays['stay_id'].unique())]
 df_diags['ecg_time'] = pd.to_datetime(df_diags['ecg_time'])
 df_edstays['intime'] = pd.to_datetime(df_edstays['intime'])
 df_edstays['outtime'] = pd.to_datetime(df_edstays['outtime'])
 df_diags['dod'] = pd.to_datetime(df_diags['dod'])
+
 
 rows_to_keep = []
 
@@ -127,6 +129,8 @@ for _, row in df_filtered_diags.iterrows():
             condition.append(1)
         elif row['dod']>row['hosp_dischtime'] or row['dod']>row['outtime']:
             condition.append(0)
+
+
             
 df_filtered_diags['mortality_stay'] = condition
 mortality_cols.append('mortality_stay')
@@ -180,7 +184,10 @@ def process_multilabel(df, column_name, threshold, output_column_name):
 
 df_filtered_diags, lbls_diags = process_multilabel(df_filtered_diags, 'all_diag_all', 230, 'Diagnoses_labels')
 
+
+
 # ICU
+
 df_icu = pd.read_csv('data/icustays.csv.gz')
 df_icu['intime'] = pd.to_datetime(df_icu['intime'])
 
@@ -226,7 +233,9 @@ df_filtered_diags['ICU_stay'] = icu_stay
 icu_cols = ['ICU_24H', 'ICU_stay']
 df_filtered_diags[icu_cols] = df_filtered_diags[icu_cols].astype(float)
 
+
 # targets with proedures
+
 df_proc = pd.read_csv('data/procedures_icd.csv.gz')
 df_proc['chartdate'] = pd.to_datetime(df_proc['chartdate'])
 mechanical_ventilation_codes = ['9670', '9671', '9672', '5A1935Z', '5A1945Z', '5A1955Z'] 
@@ -357,6 +366,7 @@ for i, row in df_filtered_diags.iterrows():
 df_filtered_diags['vasopressors'] = vasopressors
 df_filtered_diags['inotropes'] = inotropes
 
+
 df_vitalsign = pd.read_csv('data/vitalsign.csv.gz')
 df_vitalsign = df_vitalsign[df_vitalsign['subject_id'].isin(df_filtered_diags['subject_id'].unique())]
 df_vitalsign['charttime'] = pd.to_datetime(df_vitalsign['charttime'])
@@ -443,55 +453,83 @@ race_dummies = pd.get_dummies(df_features['race_mapped'], prefix='demographics_e
 
 df_features = pd.concat([df_features, race_dummies], axis=1)
 
+
 # biometrics
+
 omr = pd.read_csv('data/omr.csv.gz')
 omr['result_value'] = pd.to_numeric(omr['result_value'], errors='coerce')
 omr['chartdate'] = pd.to_datetime(omr['chartdate'])
-omr = omr[omr['result_name'].isin(['BMI','BMI (kg/m2)','Height (Inches)','Weight (Lbs)','eGFR'])]
+omr = omr[omr['result_name'].isin(['BMI (kg/m2)','Height (Inches)','Weight (Lbs)'])]
+
 omr = omr[omr['subject_id'].isin(df_features['subject_id'].unique())]
-omr = omr[omr['seq_num'].isin([1])]
-omr_pivot = omr.pivot(index=['subject_id', 'chartdate'], columns='result_name', values='result_value')
-omr_pivot['BMI (kg/m2)'] = omr_pivot['BMI (kg/m2)'].fillna(omr_pivot['BMI'])
-omr_pivot['Height (Inches)'] = pd.to_numeric(omr_pivot['Height (Inches)'], errors='coerce')
-omr_pivot['Weight (Lbs)'] = pd.to_numeric(omr_pivot['Weight (Lbs)'], errors='coerce')
-omr_pivot['Height (cm)'] = omr_pivot['Height (Inches)'] * 2.54
-omr_pivot['Weight (kg)'] = omr_pivot['Weight (Lbs)'] * 0.453592
-omr_pivot = omr_pivot.drop(columns=['Height (Inches)', 'Weight (Lbs)'])
-omr_pivot.loc[omr_pivot['BMI (kg/m2)'] > 100, 'BMI (kg/m2)'] = np.nan
-omr_pivot.loc[omr_pivot['Weight (kg)'] > 400, 'Weight (kg)'] = np.nan
-omr_pivot.loc[omr_pivot['Height (cm)'] > 400, 'Height (cm)'] = np.nan
-omr_pivot.loc[omr_pivot['Weight (kg)'] < 20, 'Weight (kg)'] = np.nan
-omr_pivot.loc[omr_pivot['Height (cm)'] < 60, 'Height (cm)'] = np.nan
+omr.dropna(subset=['result_value'], inplace=True)
+omr.loc[omr['result_name'] == 'Height (Inches)', 'result_value'] *= 2.54
+omr.loc[omr['result_name'] == 'Height (Inches)', 'result_name'] = 'Height (cm)'
+omr.loc[omr['result_name'] == 'Weight (Lbs)', 'result_value'] *= 0.453592
+omr.loc[omr['result_name'] == 'Weight (Lbs)', 'result_name'] = 'Weight (kg)'
 
-out_data = {col: [] for col in omr_pivot.columns}
+conditions = [
+    (omr['result_name'] == 'BMI (kg/m2)') & (omr['result_value'] > 100),
+    (omr['result_name'] == 'Weight (kg)') & (omr['result_value'] > 400),
+    (omr['result_name'] == 'Height (cm)') & (omr['result_value'] > 400),
+    (omr['result_name'] == 'Weight (kg)') & (omr['result_value'] < 20),
+    (omr['result_name'] == 'Height (cm)') & (omr['result_value'] < 60)
+]
 
-for _, row in df_features.iterrows():
+for condition in conditions:
+    omr.loc[condition, 'result_value'] = np.nan
+    
+omr.dropna(subset=['result_value'], inplace=True)
+
+
+out_bmi = []
+out_weight = []
+out_height = []
+
+for _, row in df_features.iterrows(), total=len(df_features):
     patient = row['subject_id']
-    intime = row['intime']
-    try:
-        df_patient = omr_pivot.loc[patient]
-        df_patient_within_week = df_patient.loc[(df_patient.index >= (intime - pd.Timedelta(days=30))) & 
-                                                (df_patient.index <= (intime + pd.Timedelta(days=30)))]
-        if not df_patient_within_week.empty:
-            closest_row = df_patient_within_week.iloc[0]
-            for col in omr_pivot.columns:
-                out_data[col].append(closest_row[col])
+    intime = row['ecg_time']
+    
+    df_patient = omr[omr['subject_id'] == patient]
+    df_patient_within = df_patient.loc[(df_patient['chartdate'] >= (intime - pd.Timedelta(days=30))) & 
+                                       (df_patient['chartdate'] <= (intime + pd.Timedelta(days=30)))]
+    
+    if df_patient_within.empty:
+        out_bmi.append(np.nan)
+        out_weight.append(np.nan)
+        out_height.append(np.nan)
+    else:
+        # Find the closest BMI to ecg_time
+        bmi_rows = df_patient_within[df_patient_within['result_name'] == 'BMI (kg/m2)']
+        if not bmi_rows.empty:
+            closest_bmi = bmi_rows.iloc[(bmi_rows['chartdate'] - intime).abs().argsort()[:1]]['result_value'].values[0]
+            out_bmi.append(closest_bmi)
         else:
-            for col in omr_pivot.columns:
-                out_data[col].append(np.nan)
-    
-    except KeyError:
-        for col in omr_pivot.columns:
-            out_data[col].append(np.nan)
+            out_bmi.append(np.nan)
+        
+        # Find the closest Weight to ecg_time
+        weight_rows = df_patient_within[df_patient_within['result_name'] == 'Weight (kg)']
+        if not weight_rows.empty:
+            closest_weight = weight_rows.iloc[(weight_rows['chartdate'] - intime).abs().argsort()[:1]]['result_value'].values[0]
+            out_weight.append(closest_weight)
+        else:
+            out_weight.append(np.nan)
+        
+        # Find the closest Height to ecg_time
+        height_rows = df_patient_within[df_patient_within['result_name'] == 'Height (cm)']
+        if not height_rows.empty:
+            closest_height = height_rows.iloc[(height_rows['chartdate'] - intime).abs().argsort()[:1]]['result_value'].values[0]
+            out_height.append(closest_height)
+        else:
+            out_height.append(np.nan)
+            
+df_features['biometrics_bmi'] = out_bmi
+df_features['biometrics_weight'] = out_weight
+df_features['biometrics_height'] = out_height
 
-for col in omr_pivot.columns:
-    df_features['biometrics_'+col] = out_data[col]
-    
-    
-    
-df_features.drop(columns=['biometrics_BMI','biometrics_eGFR'], inplace=True)
 
 # vital signs
+
 df_vitalsign = pd.read_csv('data/vitalsign.csv.gz')
 df_vitalsign = df_vitalsign[df_vitalsign['subject_id'].isin(df_features['subject_id'].unique())]
 df_vitalsign['charttime'] = pd.to_datetime(df_vitalsign['charttime'])
@@ -529,7 +567,6 @@ for stay_id in df_vitalsign['stay_id'].unique():
             new_df_vital.append(df_vital_stay_filtered)
             
 df_vital = pd.concat(new_df_vital)
-
 
 intime_dict = df_features.set_index('ed_stay_id')['intime'].to_dict()
 df_vital['intime'] = df_vital['stay_id'].map(intime_dict)
@@ -610,7 +647,9 @@ df_features.reset_index(inplace=True, drop=True)
 df_features = pd.concat([df_features, vital_features_df], axis=1)
 
 acuities = []
+
 df_triage = pd.read_csv('data/triage.csv.gz')
+
 for i,row in df_features.iterrows():
     row_acuity = df_triage[df_triage['stay_id']==row['ed_stay_id']]
     if len(row_acuity)>0:
@@ -621,8 +660,10 @@ for i,row in df_features.iterrows():
         
 df_features['vitalparemeters_acuity'] = acuities
 
+
 df_labtitles = pd.read_csv('data/d_labitems.csv.gz', compression='gzip')
 df_labevents = pd.read_csv('data/labevents.csv.gz', compression='gzip', low_memory=False)
+
 df_labs = pd.merge(df_labevents, df_labtitles, on='itemid')
 df_labevents = None
 
@@ -766,14 +807,7 @@ df_features = pd.concat([df_features, lab_features_df], axis=1)
 df_features.drop(columns='race_mapped', inplace=True)
 df_features.rename(columns={'age':'demographics_age','gender':'demographics_gender'}, inplace=True)
 
-features_cols = ['demographics_gender','demographics_age'] + df_features.columns[34:].tolist() 
-
-for col in features_cols:
-    mask_col = col + '_m'
-    df_features[mask_col] = df_features[col].notna().astype(float)
-    
-df_features[features_cols] = df_features[features_cols].fillna(df_features[features_cols].median())
-
+features_cols = ['demographics_age','demographics_gender'] + df_features.columns[34:].tolist() # 470
 
 columns_to_rename = [
     'data', 'file_name', 'study_id', 'subject_id', 'ecg_time', 
@@ -787,9 +821,8 @@ columns_to_rename = [
 renaming_dict = {col: f'general_{col}' for col in columns_to_rename}
 df_features.rename(columns=renaming_dict, inplace=True)
 
-
-lbls_diags = lbls_diags 
-lbls_det = decompensation_model_cols 
+lbls_diags = lbls_diags # 1414
+lbls_det = decompensation_model_cols # 15
 
 for i, label in enumerate(lbls_diags):
     df_features[f'diagnoses_{label}'] = df_features['Diagnoses_labels'].apply(lambda x: x[i])
@@ -799,19 +832,4 @@ for i, label in enumerate(lbls_det):
 
 df_features.drop(['Diagnoses_labels', 'Deterioration_labels'], axis=1, inplace=True)
 
-diagnoses_columns = [i for i in df_features.columns if 'diagnoses_' in i]
-new_lbs_diags = ['diagnoses_'+i+'_'+icd10.find(i).description for i in lbls_diags]
-rename_dict = dict(zip(diagnoses_columns, new_lbs_diags))
-df_features.rename(columns=rename_dict, inplace=True)
-
-columns_to_drop = ['general_ed_diag_ed', 'general_ed_diag_hosp', 
-                   'general_hosp_diag_hosp', 'general_all_diag_hosp', 
-                   'general_all_diag_all']
-
-df_features = df_features.drop(columns=columns_to_drop)
-proposed_df = report_on_dataframe(df_features, unit='MB')
-
-new_df = optimize_dtypes(df_features, proposed_df)
-new_df.to_csv('data/memmap/df_memmap.csv', index=False)
-
-
+df_features.to_csv('data/memmap/mds_ed.csv', index=False)
