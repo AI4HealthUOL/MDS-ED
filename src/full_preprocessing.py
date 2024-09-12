@@ -53,21 +53,21 @@ df_edstays['intime'] = pd.to_datetime(df_edstays['intime'])
 df_edstays['outtime'] = pd.to_datetime(df_edstays['outtime'])
 df_diags['dod'] = pd.to_datetime(df_diags['dod'])
 
-
 rows_to_keep = []
 
+# Iterate over each row in the df_diags DataFrame (unique MIMIC-ICD ECG rows)
 for _, row in df_diags.iterrows():
     patient = row['subject_id']
     ecg_time = row['ecg_time']
-    
+    studys_id.append(row['study_id'])
+
     df_patient = df_edstays[df_edstays['subject_id'] == patient]
-    
-    for _, patient_row in df_patient.iterrows():
+  
+    for _, patient_row in df_patient.iterrows(): 
         intime = patient_row['intime']
         intime_90min = intime + pd.Timedelta(minutes=90)
-        
-        if ecg_time >= intime and ecg_time <= intime_90min:
-            
+
+        if intime <= ecg_time <= intime_90min:
             row_dict = row.to_dict()
             row_dict['stay_id'] = patient_row['stay_id']
             row_dict['intime'] = patient_row['intime']
@@ -76,7 +76,8 @@ for _, row in df_diags.iterrows():
             row_dict['race'] = patient_row['race']
 
             rows_to_keep.append(row_dict)
-            
+            break  
+
 df_filtered_diags = pd.DataFrame(rows_to_keep)
 df_filtered_diags.reset_index(drop=True, inplace=True)
 df_filtered_diags['90min'] = df_filtered_diags['intime'] + pd.Timedelta(minutes=90)
