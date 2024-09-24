@@ -36,22 +36,26 @@ The datasets include various patient data collected within a 90-minute interval 
 
 ## Proposed Baseline Benchmark
 
-Overall, we can draw several conclusions:
-
-1. **Superior Performance of Multimodal Models**: The results demonstrate that multimodal models, which integrate diverse data types, offer superior performance in both diagnostic and deterioration tasks (row 1/2 vs. row 3/4).
-2. **Improved Performance with Raw ECG Waveforms**: In the diagnoses task, the use of ECG raw waveforms instead of ECG features improves the performance in a statistically significant manner (row 3 vs. row 4), whereas for the deterioration task, we performed a direct comparison via bootstrapping the score difference for statistical significance, and we did not find a statistically significant difference. To the best of our knowledge, this is the first statistically robust demonstration of the added value of raw waveform input against features for clinically relevant prediction tasks such as diagnoses prediction.
-3. **ECG Waveform Superiority in Diagnostic Setting**: The model building on ECG waveforms as only input outperforms the tabular-only model in the diagnostic setting, but not in the deterioration setting (row 1 vs. row 2). We hypothesize that this is due to the inclusion of tabular trends over time which aligns with the task definition of deterioration. We believe that the inclusion of multiple raw ECGs over time instead of just a single snapshot would allow us to capture more meaningful deterioration trends also from raw waveform data.
-
 ![alt text](https://github.com/AI4HealthUOL/MDS-ED/blob/main/reports/bench.png?style=centerme)
 
 
+## Conclusions
+
+Overall, we can draw several conclusions:
+
+1. Firstly, the results demonstrate that multimodal models, which integrate diverse data types, offer superior performance in both diagnostic and deterioration tasks (row 4&5 vs. the rest). 
+
+2. Secondly, in the diagnoses task as well as in the deterioration task, the use of ECG raw waveforms instead of ECG features improves the performance in a statistically significant manner (row 4 vs. row 5), finding which is not in line with [ 14 ]. To the best of our knowledge, this is the first statistically robust demonstration of the added value of raw ECG waveform input against ECG features
+for clinically relevant prediction tasks such as diagnoses and deterioration prediction. 
+
+3. Thirdly, for the unimodal models, in the deterioration task, the clinical routine data model outperforms ECG features only and ECG waveforms only, however, in the diagnoses task, the ECG waveforms only outperforms the other 2 settings, we hypothesize that for the deterioration task, the clinical routine data apart of including a rich set of clinical features (demographics, biometrics, vital parameters trends, and laboratory values trends) against only an single ECG either in features or waveform, it also includes trends over time which aligns with the task definition of deterioration. Despite this, we believe that a single ECG snapshot can achieve high performances for both tasks, but also we believe that the inclusion of multiple ECGs over time instead of just a single snapshot would allow us to capture more meaningful deterioration and potentially diagnoses trends.
 
 
 ## Reference
 ```bibtex
 @misc{alcaraz2024mdsedmultimodaldecisionsupport,
       title={MDS-ED: Multimodal Decision Support in the Emergency Department -- a Benchmark Dataset for Diagnoses and Deterioration Prediction in Emergency Medicine}, 
-      author={Juan Miguel Lopez Alcaraz and Nils Strodthoff},
+      author={Juan Miguel Lopez Alcaraz and Hjalmar Bouma and Nils Strodthoff},
       year={2024},
       eprint={2407.17856},
       archivePrefix={arXiv},
