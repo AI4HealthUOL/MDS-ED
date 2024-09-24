@@ -1,0 +1,52 @@
+defaults:
+  - base: base
+  - data@data0: multimodal_mdsed
+  - ts@ts0: tsenc
+  - ts/enc@ts0.enc: none
+  - ts/pred@ts0.pred: s4
+  - ts/head@ts0.head: pool
+  - ts/loss@ts0.loss: none
+  - static: mlp
+  - head: concat
+  - loss: bcef
+  - trainer: trainer
+  - task: multi
+  - metric@metric0: aurocagg
+  - _self_
+
+data0:
+  name: "mdsed_deterioration" 
+
+loss:
+  ignore_nans: True
+
+base:
+  fs: 100.
+  input_size: 250
+  input_channels: 12
+  normalize: false
+  batch_size: 32
+  input_channels_cat: 3
+  input_channels_cont: 463
+
+trainer:
+  gpus: 1
+  refresh_rate: 0
+  username: "nstrodt"
+  epochs: 40
+  precision: 32
+
+ts0:
+  pred:
+    causal: False
+    state_dim: 8
+    model_dim: 512
+    backbone: "s42"
+
+static:
+  vocab_sizes: [2,5,5]
+  embedding_dims: [16,16,16]
+  lin_ftrs: [128,128,128]
+
+metric0:
+  bootstrap_iterations: 1000
