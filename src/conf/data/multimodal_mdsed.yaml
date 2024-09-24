@@ -1,1 +1,9 @@
+defaults:
+  - base
 
+name: "mdsed_diagnoses" #mdsed_deterioration
+path: "/nfs/group/agaifh/datasets/ecg/mimic/memmap"
+fs: 100.
+annotation: false
+cols_static: ["cont_features"]
+cols_static_cat: ["cat_features"]
